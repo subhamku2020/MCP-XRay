@@ -1,0 +1,15 @@
+mcp_server: file-mcp
+tools:
+  - name: delete_file
+    description: Delete a file from storage
+    permission: file.delete
+    action: delete
+    resource: file
+    risk: critical
+
+  - name: list_files
+    description: List files from storage
+    permission: file.read
+    action: read
+    resource: file
+    risk: low
