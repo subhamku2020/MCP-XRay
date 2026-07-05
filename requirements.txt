@@ -1,0 +1,8 @@
+streamlit>=1.50.0
+pyvis>=0.3.2
+networkx>=3.5
+PyYAML>=6.0.2
+pydantic>=2.12.0
+pydantic-core>=2.41.0
+pandas>=2.3.0
+pillow>=12.0.0
