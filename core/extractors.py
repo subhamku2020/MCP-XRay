@@ -14,6 +14,19 @@ from core.models import ToolRecord
 MCP_PY_DECORATOR_PATTERNS = ["tool", "mcp.tool", "server.tool", "app.tool"]
 TEXT_EXTENSIONS = {".py", ".ts", ".tsx", ".js", ".jsx", ".json", ".yaml", ".yml"}
 
+# Filenames that are agent tool modules (plain function registration pattern)
+AGENT_TOOL_FILE_HINTS = {"tool", "tools"}
+
+# call_tool("name", ...) pattern used by MCP client adapters
+_CALL_TOOL_RE = re.compile(
+    r'\.call_tool\(\s*["\']([^"\']+)["\']',
+    re.MULTILINE,
+)
+# _server("name").call_tool(...) to capture which server is targeted
+_SERVER_NAME_RE = re.compile(
+    r'self\._server\(\s*["\']([^"\']+)["\']',
+)
+
 
 def _safe_read(path: Path) -> str:
     try:
@@ -337,16 +350,199 @@ def extract_config_tools(path: Path, repo_root: Path, repo_name: str) -> List[To
     return tools
 
 
+def extract_agent_manifest_tools(path: Path, repo_root: Path, repo_name: str) -> List[ToolRecord]:
+    """Extract MCP server registrations from an agent manifest (app.yaml spec.servers[]).
+
+    Produces one ToolRecord per enabled server entry so the graph shows which
+    external MCP servers this agent is wired to.
+    """
+    source = _safe_read(path)
+    if not source.strip():
+        return []
+
+    try:
+        data = yaml.safe_load(source)
+    except Exception:
+        return []
+
+    if not isinstance(data, dict):
+        return []
+
+    servers = data.get("spec", {}).get("servers", [])
+    if not servers:
+        return []
+
+    rel = str(path.relative_to(repo_root))
+    tools: List[ToolRecord] = []
+
+    for server in servers:
+        if not isinstance(server, dict):
+            continue
+        server_id = server.get("id") or ""
+        server_name = server.get("name") or server_id
+        enabled = server.get("enabled", True)
+        destination = server.get("destination") or ""
+
+        if not server_name:
+            continue
+
+        tools.append(
+            ToolRecord(
+                repo_name=repo_name,
+                file_path=rel,
+                language="yaml",
+                server_name=server_name,
+                tool_name=f"[mcp-server] {server_name}",
+                description=(
+                    f"External MCP server registered in agent manifest. "
+                    f"id={server_id}, destination={destination}, enabled={enabled}"
+                ),
+                input_schema={},
+                declared_permission=None,
+                declared_action="connect",
+                declared_resource="mcp_server",
+                declared_risk="medium" if enabled else "low",
+                code_snippet=yaml.dump(server, default_flow_style=False),
+                evidence=["manifest:spec.servers[]"],
+            )
+        )
+
+    return tools
+
+
+def extract_mcp_client_call_tools(path: Path, repo_root: Path, repo_name: str) -> List[ToolRecord]:
+    """Extract remote tool invocations from MCP client adapter code.
+
+    Scans for `self._server("name").call_tool("tool_name", ...)` patterns and
+    pairs each call_tool with the nearest preceding _server() lookup to record
+    which server is being called.
+    """
+    source = _safe_read(path)
+    if not source.strip() or ".call_tool(" not in source:
+        return []
+
+    rel = str(path.relative_to(repo_root))
+    tools: List[ToolRecord] = []
+    lines = source.splitlines()
+
+    for i, line in enumerate(lines):
+        ct_match = _CALL_TOOL_RE.search(line)
+        if not ct_match:
+            continue
+
+        tool_name = ct_match.group(1)
+
+        # Look back up to 3 lines for _server("name") to identify the target server
+        server_name = "mcp-server"
+        context_start = max(0, i - 3)
+        context_block = "\n".join(lines[context_start : i + 1])
+        sv_match = _SERVER_NAME_RE.search(context_block)
+        if sv_match:
+            server_name = sv_match.group(1)
+
+        # Grab a small snippet for context
+        snippet_start = max(0, i - 2)
+        snippet_end = min(len(lines), i + 5)
+        snippet = "\n".join(lines[snippet_start:snippet_end])
+
+        tools.append(
+            ToolRecord(
+                repo_name=repo_name,
+                file_path=rel,
+                language="python",
+                server_name=server_name,
+                tool_name=tool_name,
+                description=f"Remote MCP tool called on server '{server_name}'.",
+                input_schema={},
+                declared_permission=None,
+                declared_action=None,
+                declared_resource=None,
+                declared_risk=None,
+                code_snippet=snippet,
+                evidence=["pattern:call_tool()"],
+            )
+        )
+
+    return tools
+
+
+def extract_plain_agent_tools(path: Path, repo_root: Path, repo_name: str) -> List[ToolRecord]:
+    """Extract plain async functions registered as agent tools (no MCP decorator).
+
+    Targets files whose stem contains 'tool' or 'tools' — the convention used by
+    PydanticAI / LangGraph projects that pass bare functions into Agent(tools=[...]).
+    Reads function name + docstring to populate the record; permission is left for
+    infer_permission() to fill in from the function name/description.
+    """
+    stem = path.stem.lower()
+    if not any(hint in stem for hint in AGENT_TOOL_FILE_HINTS):
+        return []
+
+    source = _safe_read(path)
+    if not source.strip():
+        return []
+
+    try:
+        tree = ast.parse(source)
+    except SyntaxError:
+        return []
+
+    rel = str(path.relative_to(repo_root))
+    tools: List[ToolRecord] = []
+
+    for node in ast.walk(tree):
+        if not isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
+            continue
+
+        # Skip private helpers and functions that already have MCP decorators
+        if node.name.startswith("_"):
+            continue
+        if any(_is_mcp_tool_decorator(dec) for dec in node.decorator_list):
+            continue
+
+        description = ast.get_docstring(node) or ""
+
+        tools.append(
+            ToolRecord(
+                repo_name=repo_name,
+                file_path=rel,
+                language="python",
+                server_name=_guess_server_name(path),
+                tool_name=node.name,
+                description=description,
+                input_schema=_extract_schema_from_function(node),
+                declared_permission=None,
+                declared_action=None,
+                declared_resource=None,
+                declared_risk=None,
+                code_snippet=_extract_code_snippet(source, node),
+                evidence=["pattern:plain-agent-tool"],
+            )
+        )
+
+    return tools
+
+
 def extract_tools_from_file(path: Path, repo_root: Path, repo_name: str) -> List[ToolRecord]:
     suffix = path.suffix.lower()
 
     if suffix == ".py":
-        return extract_python_tools(path, repo_root, repo_name)
+        tools = extract_python_tools(path, repo_root, repo_name)
+        # If no decorated MCP tools found, try client and plain-function patterns
+        if not tools:
+            tools = extract_mcp_client_call_tools(path, repo_root, repo_name)
+        if not tools:
+            tools = extract_plain_agent_tools(path, repo_root, repo_name)
+        return tools
 
     if suffix in {".ts", ".tsx", ".js", ".jsx"}:
         return extract_js_ts_tools(path, repo_root, repo_name)
 
     if suffix in {".json", ".yaml", ".yml"}:
-        return extract_config_tools(path, repo_root, repo_name)
+        # Try agent manifest first (app.yaml with spec.servers), fall back to generic config
+        tools = extract_agent_manifest_tools(path, repo_root, repo_name)
+        if not tools:
+            tools = extract_config_tools(path, repo_root, repo_name)
+        return tools
 
     return []
