@@ -130,21 +130,37 @@ Private repositories are supported if Git authentication is already configured l
 
 ### Python
 
+Detects MCP tools registered using common decorators.
+
 ```python
-@mcp.tool()
-def create_refund(customer_id: str, amount: float):
-    """Create refund for customer."""
+@mcp.tool(...)
+@server.tool(...)
+@app.tool(...)
+@tool(...)
 ```
+
+**Extracts:** Tool Name • Description • Input Schema • Permission • Action • Resource • Risk
+
+---
 
 ### TypeScript / JavaScript
 
+Detects common MCP tool registration patterns.
+
 ```typescript
-server.tool("create_refund", schema, async (args) => {
-    ...
-})
+server.tool(...)
+mcp.tool(...)
+app.tool(...)
+registerTool(...)
 ```
 
+**Extracts:** Tool Name • Description • Zod Schema • Permission • Action • Resource • Risk
+
+---
+
 ### YAML / JSON
+
+Parses configuration-based tool definitions.
 
 ```yaml
 tools:
@@ -153,7 +169,50 @@ tools:
     risk: high
 ```
 
+**Extracts:** Tool Metadata • Permission • Action • Resource • Risk • Input Schema
+
 ---
+
+### MCP Agent Manifests
+
+Detects external MCP server registrations from agent manifests.
+
+```yaml
+spec:
+  servers:
+    - id: payments
+      destination: https://...
+```
+
+**Extracts:** Server Name • Server ID • Destination • Enabled Status
+
+---
+
+### MCP Client Tool Calls
+
+Detects remote MCP tool invocations.
+
+```python
+self._server("payments").call_tool("create_refund")
+```
+
+**Extracts:** Target Server • Tool Name • Source Location
+
+---
+
+### Plain AI Agent Tools
+
+Discovers agent tools implemented as plain Python functions (without MCP decorators).
+
+```python
+async def create_refund(...):
+    """Create refund"""
+```
+
+**Extracts:** Function Name • Parameters • Docstring • Generated Input Schema
+
+---
+
 
 ## Permission Classification
 
