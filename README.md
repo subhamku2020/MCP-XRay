@@ -1,32 +1,99 @@
 # MCP-XRay
-Scan Agentic tools for permissions
 
-MCP-XRay is a local-first audit tool that scans a GitHub repository or local folder, detects MCP-style tool definitions, extracts or infers tool permissions, and renders a visual graph:
+> **Understand what your AI agents can actually do.**
 
-```text
-Repository → File → MCP Server → Tool → Permission → Resource → Risk
-```
+MCP-XRay is an open-source, local-first security auditing tool that discovers, extracts, infers, and visualizes permissions used by AI agents and Model Context Protocol (MCP) servers.
+
+Instead of manually inspecting source code, configuration files, or tool definitions, MCP-XRay automatically builds a permission graph, helping developers, security engineers, product owners, and auditors understand an AI application's effective capabilities.
+
+---
+
+## Why MCP-XRay?
+
+As AI agents gain access to files, APIs, databases, cloud services, shell commands, and other sensitive resources, it becomes increasingly difficult to answer simple questions like:
+
+* What permissions does this AI agent have?
+* Which tools are exposed?
+* What resources can they access?
+* Which permissions are explicitly declared versus inferred?
+* What is the overall security risk?
+
+MCP-XRay provides a single, human-readable view of an AI application's permissions, making security reviews and governance significantly easier.
+
+---
 
 ## Features
 
-- Scan local folders or GitHub repos
-- Detect MCP tools in Python, TypeScript, JavaScript, JSON, YAML
-- Extract declared permission metadata if present
-- Infer missing permissions from tool names, descriptions, and code behavior
-- Render an interactive graph using Streamlit + PyVis
-- Export graph JSON
-- Save scan snapshots
-- Compare two snapshots for permission drift
+* Scan local folders or GitHub repositories
+* Detect MCP servers and tool definitions
+* Support Python, JavaScript, TypeScript, JSON, and YAML
+* Extract explicitly declared permissions
+* Infer permissions from tool names, descriptions, and implementation
+* Visualize relationships as an interactive permission graph
+* Export graph data as JSON
+* Save scan snapshots
+* Compare snapshots to detect permission drift
+* Designed to support multiple MCP clients and permission sources
 
-## Install
+---
+
+## Permission Graph
+
+MCP-XRay visualizes permissions using the following hierarchy:
+
+```text
+Repository
+    └── File
+          └── MCP Server
+                 └── Tool
+                        └── Permission
+                               └── Resource
+                                      └── Risk
+```
+
+---
+
+## Supported Permission Sources
+
+The project is designed to aggregate permissions from multiple locations. Current and planned sources include:
+
+| Source                   | Status |
+| ------------------------ | :----: |
+| Tool Definitions         |    ✅   |
+| MCP Server Configuration |    ✅   |
+| JSON Metadata            |    ✅   |
+| YAML Metadata            |    ✅   |
+| Python MCP Tools         |    ✅   |
+| JavaScript MCP Tools     |    ✅   |
+| TypeScript MCP Tools     |    ✅   |
+| Prompt Definitions       |   🚧   |
+| Resource Definitions     |   🚧   |
+| Client Configuration     |   🚧   |
+| Runtime Discovery        |   🚧   |
+| Additional MCP Clients   |   🚧   |
+
+> *(This table can be expanded as new extractors are added.)*
+
+---
+
+## Installation
 
 ```bash
-python -m venv mcp
-source mcp/bin/activate      # macOS/Linux
-# .venv\Scripts\activate     # Windows
+git clone https://github.com/subhamku2020/MCP-XRay.git
+cd MCP-XRay
+
+python -m venv .venv
+
+# macOS/Linux
+source .venv/bin/activate
+
+# Windows
+.venv\Scripts\activate
 
 pip install -r requirements.txt
 ```
+
+---
 
 ## Run
 
@@ -34,28 +101,32 @@ pip install -r requirements.txt
 streamlit run app.py
 ```
 
-## Try demo
+---
 
-In the Streamlit UI, choose:
+## Quick Demo
 
-```text
-Scan mode: Local folder
-Local folder path: samples/demo_repo
-```
+Open the Streamlit UI and select:
+
+* **Scan Mode:** Local Folder
+* **Path:** `samples/demo_repo`
 
 Then click **Scan**.
 
-## GitHub repo scan
+---
 
-Use a public GitHub URL:
+## Scan a GitHub Repository
+
+Provide any public GitHub repository URL.
 
 ```text
 https://github.com/org/repo
 ```
 
-Private repos will work only if your local `git` is already authenticated.
+Private repositories are supported if Git authentication is already configured locally.
 
-## What it detects
+---
+
+## What MCP-XRay Detects
 
 ### Python
 
@@ -63,14 +134,13 @@ Private repos will work only if your local `git` is already authenticated.
 @mcp.tool()
 def create_refund(customer_id: str, amount: float):
     """Create refund for customer."""
-    ...
 ```
 
 ### TypeScript / JavaScript
 
-```ts
+```typescript
 server.tool("create_refund", schema, async (args) => {
-  ...
+    ...
 })
 ```
 
@@ -79,14 +149,47 @@ server.tool("create_refund", schema, async (args) => {
 ```yaml
 tools:
   - name: create_refund
-    description: Create refund
     permission: payments.refund.create
     risk: high
 ```
 
-## Permission source types
+---
 
-- `declared`: permission is explicitly present in code/config metadata
-- `inferred`: permission is guessed from name/description/code behavior
-- `unknown`: scanner could not infer confidently
+## Permission Classification
 
+| Type         | Description                                                               |
+| ------------ | ------------------------------------------------------------------------- |
+| **Declared** | Permission is explicitly defined in code or metadata.                     |
+| **Inferred** | Permission is derived from the tool name, description, or implementation. |
+| **Unknown**  | The scanner cannot confidently determine the permission.                  |
+
+---
+
+## Roadmap
+
+* Support all major MCP clients
+* Discover permissions from every available MCP source
+* HTML reports
+* SARIF export
+* CI/CD integration
+* GitHub Action
+* VS Code extension
+* Risk scoring engine
+* Policy-as-Code support
+* Enterprise reporting
+
+---
+
+## Contributing
+
+Contributions are welcome!
+
+Whether you're fixing bugs, adding support for new MCP clients, improving permission extractors, or enhancing documentation, we'd love your help.
+
+Please read **CONTRIBUTING.md** before opening a Pull Request.
+
+---
+
+## License
+
+Licensed under the Apache License 2.0.
