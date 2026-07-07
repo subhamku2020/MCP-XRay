@@ -36,7 +36,11 @@ MCP-XRay provides a single, human-readable view of an AI application's permissio
 * Designed to support multiple MCP clients and permission sources
 
 ---
+## Demo
 
+![MCP-XRay Demo](docs/demo.gif)
+
+---
 ## Permission Graph
 
 MCP-XRay visualizes permissions using the following hierarchy:
