@@ -53,27 +53,29 @@ Repository
 
 ---
 
-## Supported Permission Sources
+## Supported Discovery Sources
 
-The project is designed to aggregate permissions from multiple locations. Current and planned sources include:
+MCP-XRay discovers tools, permissions, and related metadata from multiple implementation patterns across the MCP ecosystem.
 
-| Source                   | Status |
-| ------------------------ | :----: |
-| Tool Definitions         |    ✅   |
-| MCP Server Configuration |    ✅   |
-| JSON Metadata            |    ✅   |
-| YAML Metadata            |    ✅   |
-| Python MCP Tools         |    ✅   |
-| JavaScript MCP Tools     |    ✅   |
-| TypeScript MCP Tools     |    ✅   |
-| Prompt Definitions       |   🚧   |
-| Resource Definitions     |   🚧   |
-| Client Configuration     |   🚧   |
-| Runtime Discovery        |   🚧   |
-| Additional MCP Clients   |   🚧   |
+| Discovery Source | Status | Description |
+|------------------|:------:|-------------|
+| Python MCP Decorators | ✅ | Detects tools registered using `@mcp.tool`, `@server.tool`, `@app.tool`, and `@tool` decorators. |
+| JavaScript / TypeScript Tool Registration | ✅ | Detects tools registered using `server.tool()`, `mcp.tool()`, `app.tool()`, and `registerTool()`. |
+| JSON Tool Definitions | ✅ | Extracts tool definitions, permissions, and metadata from JSON configuration files. |
+| YAML Tool Definitions | ✅ | Extracts tool definitions, permissions, and metadata from YAML configuration files. |
+| MCP Agent Manifests | ✅ | Discovers external MCP server registrations from agent manifests (`spec.servers`). |
+| MCP Client Tool Calls | ✅ | Detects remote MCP tool invocations using `call_tool()` patterns. |
+| Plain AI Agent Tools | ✅ | Discovers agent tools implemented as standard Python functions without MCP decorators. |
+| Automatic Input Schema Extraction | ✅ | Generates input schemas from Python function signatures and Zod-based TypeScript definitions. |
+| Permission Metadata Extraction | ✅ | Extracts declared Permission, Scope, Action, Resource, and Risk metadata when available. |
+| Permission Inference | ✅ | Infers permissions from tool names, descriptions, and implementation when explicit metadata is unavailable. |
+| Detection Evidence | ✅ | Records how each tool was discovered (decorator, registration pattern, configuration, manifest, or client call). |
+| Prompt Definitions | 🚧 | Planned |
+| Resource Definitions | 🚧 | Planned |
+| Runtime Discovery | 🚧 | Planned |
+| Additional MCP Clients | 🚧 | Planned |
 
-> *(This table can be expanded as new extractors are added.)*
-
+> **Note:** New discovery sources are continuously being added as the MCP ecosystem evolves. Contributions are welcome!
 ---
 
 ## Installation
