@@ -245,6 +245,43 @@ async def create_refund(...):
 
 ---
 
+## Run with Docker
+
+### Pull the latest image
+
+```bash
+docker pull subham107/mcp-xray:latest1
+```
+
+### Scan GitHub Repository
+
+```bash
+docker run -p 8501:8501 subham107/mcp-xray:latest1
+```
+
+Open your browser and navigate to:
+
+```
+http://localhost:8501
+```
+
+### Scan Local Repository
+
+Mount your local repository into the container:
+
+```bash
+docker run -p 8501:8501 \
+  -v /Users/ID/Downloads/project_folder:/workspace \
+  subham107/mcp-xray:latest1
+```
+
+Then, in MCP-XRay, enter the following path in the **Local Folder** field:
+
+```
+/workspace
+```
+---
+
 ## Contributing
 
 Contributions are welcome!
